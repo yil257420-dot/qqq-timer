@@ -1,27 +1,25 @@
 import yfinance as yf
 import requests
 import os
-import pandas_market_calendars as mcal
-from datetime import datetime
+import datetime
 
 def run():
-    # 1. 智能判断节假日
-    nyse = mcal.get_calendar('NYSE')
-    today = datetime.now().date()
-    schedule = nyse.schedule(start_date=today, end_date=today)
-    if schedule.empty:
+    # 1. 基础逻辑判断是否为周末 (星期六:5, 星期日:6)
+    today = datetime.datetime.now().weekday()
+    if today >= 5:
         return
 
-    # 2. 实时抓取行情
+    # 2. 实时数据获取
     ticker = yf.Ticker("QQQ")
+    # 使用 fast_info 绕过复杂的 pandas 计算，降低报错风险
     info = ticker.fast_info
     current_price = info['last_price']
     prev_close = info['previous_close']
     
-    # 3. 计算涨跌幅
+    # 3. 计算跌幅
     chg = (current_price - prev_close) / prev_close * 100
     
-    # 4. 中文策略生成
+    # 4. 构建中文推送消息
     msg = "QQQ 实时价格: {:.2f}, 涨跌幅: {:.2f}%".format(current_price, chg)
     
     if chg < 0:
@@ -31,9 +29,9 @@ def run():
     else:
         msg += "。策略：当前未下跌，无需操作。"
 
-    # 5. 推送指令
+    # 5. 执行推送
     key = os.environ.get("PUSHDEER_KEY")
-    if key:
+    if key and key.strip():
         requests.get("https://api2.pushdeer.com/message/push", 
                      params={"pushkey": key, "text": msg}, timeout=10)
 
