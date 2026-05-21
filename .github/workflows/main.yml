@@ -1,18 +1,20 @@
-name: QQQ
+name: QQQ 定投推送
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 13 * * 1-5'
+    # 每天 UTC 13:00 运行
+    - cron: '0 13 * * 1-5'
 
 jobs:
-  job:
+  run_job:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      - run: pip install yfinance requests
+      # 安装判断节假日的库：pandas-market-calendars
+      - run: pip install yfinance requests pandas pandas-market-calendars
       - env:
           PUSHDEER_KEY: ${{ secrets.PUSHDEER_KEY }}
         run: python run.py
