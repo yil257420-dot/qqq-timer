@@ -1,19 +1,18 @@
-name: QQQ 定投推送
+name: QQQ Trading Bot
 on:
   workflow_dispatch:
   schedule:
-    # 每天 UTC 13:00 运行
-    - cron: '0 13 * * 1-5'
+    # 每天 UTC 13:30 运行，精确对齐美股开盘时间 (ET 09:30)
+    - cron: '30 13 * * 1-5'
 
 jobs:
-  run_job:
+  run_bot:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      # 安装判断节假日的库：pandas-market-calendars
       - run: pip install yfinance requests pandas pandas-market-calendars
       - env:
           PUSHDEER_KEY: ${{ secrets.PUSHDEER_KEY }}
