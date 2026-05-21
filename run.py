@@ -1,44 +1,49 @@
 import requests
-import json
 import os
 import datetime
+import time
 
 def run():
-    # 1. 周末休市检查
+    # 1. 交易日判断 (美东时间：需排除美股法定休市日，此处使用简单工作日判断)
     if datetime.datetime.now().weekday() >= 5:
         return
 
-    # 2. 直接使用原始 HTTP 请求获取数据，完全避开 yfinance 版本冲突
-    try:
-        url = "https://query1.finance.yahoo.com/v8/finance/chart/QQQ?range=1d&interval=1m"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(url, headers=headers, timeout=10).json()
-        
-        # 解析数据
-        quote = res['chart']['result'][0]['meta']
-        current_price = quote['regularMarketPrice']
-        prev_close = quote['previousClose']
-        
-        # 3. 计算涨跌幅
-        chg = (current_price - prev_close) / prev_close * 100
-        
-        # 4. 中文策略逻辑
-        msg = "QQQ 实时价格: {:.2f}, 涨跌幅: {:.2f}%".format(current_price, chg)
-        
-        if chg < 0:
-            abs_chg = abs(chg)
-            amt = 30 if abs_chg <= 2 else (50 if abs_chg <= 4 else 100)
-            msg += "。策略：建议立即买入 {} 美元。".format(amt)
-        else:
-            msg += "。策略：当前未下跌，无需操作。"
+    # 2. 深度重试逻辑：开盘时网络可能有波动，允许 3 次重试
+    session = requests.Session()
+    url = "https://query1.finance.yahoo.com/v8/finance/chart/QQQ?range=1d&interval=1m"
+    headers = {"User-Agent": "Mozilla/5.0"}
+    
+    data = None
+    for i in range(3):
+        try:
+            res = session.get(url, headers=headers, timeout=15).json()
+            if 'chart' in res and res['chart']['result']:
+                data = res['chart']['result'][0]['meta']
+                break
+        except Exception:
+            time.sleep(2) # 失败等待2秒后重试
+            
+    if not data:
+        print("Error: 数据获取失败")
+        return
 
-        # 5. 推送
-        key = os.environ.get("PUSHDEER_KEY")
-        if key:
-            requests.get("https://api2.pushdeer.com/message/push", 
-                         params={"pushkey": key, "text": msg}, timeout=10)
-    except Exception as e:
-        print(f"Error: {e}")
+    current_price = data['regularMarketPrice']
+    prev_close = data['previousClose']
+    chg = (current_price - prev_close) / prev_close * 100
+    
+    # 3. 策略逻辑
+    msg = f"QQQ 实时: {current_price:.2f}, 涨跌: {chg:.2f}%"
+    if chg < 0:
+        amt = 30 if abs(chg) <= 2 else (50 if abs(chg) <= 4 else 100)
+        msg += f"。策略：建议买入 {amt} 美元。"
+    else:
+        msg += "。策略：今日上涨，无需操作。"
+
+    # 4. 推送
+    key = os.environ.get("PUSHDEER_KEY")
+    if key:
+        session.get("https://api2.pushdeer.com/message/push", 
+                    params={"pushkey": key, "text": msg}, timeout=10)
 
 if __name__ == "__main__":
     run()
