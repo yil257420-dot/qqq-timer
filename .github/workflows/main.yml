@@ -12,10 +12,8 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      # 强制安装特定兼容版本组合，彻底修复 numpy/pandas 冲突
-      - run: |
-          pip install --upgrade pip
-          pip install numpy==1.24.3 pandas==2.0.3 yfinance requests pandas-market-calendars
+      # 只需要最基础的 requests 库
+      - run: pip install requests
       - env:
           PUSHDEER_KEY: ${{ secrets.PUSHDEER_KEY }}
         run: python run.py
