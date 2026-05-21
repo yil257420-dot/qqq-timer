@@ -2,7 +2,6 @@ name: QQQ Trading Bot
 on:
   workflow_dispatch:
   schedule:
-    # 每天 UTC 13:30 运行，精确对齐美股开盘时间 (ET 09:30)
     - cron: '30 13 * * 1-5'
 
 jobs:
@@ -13,7 +12,8 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      - run: pip install yfinance requests pandas pandas-market-calendars
+      # 明确锁定 pandas 版本以解决类型报错
+      - run: pip install yfinance requests pandas==2.0.3 pandas-market-calendars
       - env:
           PUSHDEER_KEY: ${{ secrets.PUSHDEER_KEY }}
         run: python run.py
