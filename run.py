@@ -1,39 +1,44 @@
-import yfinance as yf
 import requests
+import json
 import os
 import datetime
 
 def run():
-    # 1. 基础逻辑判断是否为周末 (星期六:5, 星期日:6)
-    today = datetime.datetime.now().weekday()
-    if today >= 5:
+    # 1. 周末休市检查
+    if datetime.datetime.now().weekday() >= 5:
         return
 
-    # 2. 实时数据获取
-    ticker = yf.Ticker("QQQ")
-    # 使用 fast_info 绕过复杂的 pandas 计算，降低报错风险
-    info = ticker.fast_info
-    current_price = info['last_price']
-    prev_close = info['previous_close']
-    
-    # 3. 计算跌幅
-    chg = (current_price - prev_close) / prev_close * 100
-    
-    # 4. 构建中文推送消息
-    msg = "QQQ 实时价格: {:.2f}, 涨跌幅: {:.2f}%".format(current_price, chg)
-    
-    if chg < 0:
-        abs_chg = abs(chg)
-        amt = 30 if abs_chg <= 2 else (50 if abs_chg <= 4 else 100)
-        msg += "。策略：建议立即买入 {} 美元。".format(amt)
-    else:
-        msg += "。策略：当前未下跌，无需操作。"
+    # 2. 直接使用原始 HTTP 请求获取数据，完全避开 yfinance 版本冲突
+    try:
+        url = "https://query1.finance.yahoo.com/v8/finance/chart/QQQ?range=1d&interval=1m"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        res = requests.get(url, headers=headers, timeout=10).json()
+        
+        # 解析数据
+        quote = res['chart']['result'][0]['meta']
+        current_price = quote['regularMarketPrice']
+        prev_close = quote['previousClose']
+        
+        # 3. 计算涨跌幅
+        chg = (current_price - prev_close) / prev_close * 100
+        
+        # 4. 中文策略逻辑
+        msg = "QQQ 实时价格: {:.2f}, 涨跌幅: {:.2f}%".format(current_price, chg)
+        
+        if chg < 0:
+            abs_chg = abs(chg)
+            amt = 30 if abs_chg <= 2 else (50 if abs_chg <= 4 else 100)
+            msg += "。策略：建议立即买入 {} 美元。".format(amt)
+        else:
+            msg += "。策略：当前未下跌，无需操作。"
 
-    # 5. 执行推送
-    key = os.environ.get("PUSHDEER_KEY")
-    if key and key.strip():
-        requests.get("https://api2.pushdeer.com/message/push", 
-                     params={"pushkey": key, "text": msg}, timeout=10)
+        # 5. 推送
+        key = os.environ.get("PUSHDEER_KEY")
+        if key:
+            requests.get("https://api2.pushdeer.com/message/push", 
+                         params={"pushkey": key, "text": msg}, timeout=10)
+    except Exception as e:
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     run()
