@@ -3,26 +3,20 @@ import requests
 import os
 
 def run():
-    # 强制锁定 QQQ
     ticker = yf.Ticker("QQQ")
-    # 获取最近 5 个交易日，确保包含至少两个完整的闭市数据
-    hist = ticker.history(period="5d")
+    # 获取实时信息
+    info = ticker.fast_info
     
-    # 必须清除空值，确保数据对齐
-    data = hist['Close'].dropna()
+    current_price = info['last_price']
+    prev_close = info['previous_close']
     
-    # 倒数第一位是最后一次结算价，倒数第二位是前一次结算价
-    y_close = data.iloc[-1]
-    b_close = data.iloc[-2]
+    # 计算实时跌幅
+    chg = (current_price - prev_close) / prev_close * 100
     
-    # 计算涨跌幅
-    chg = (y_close - b_close) / b_close * 100
-    
-    # 严谨的策略判断：下跌则触发定投计算
-    push_msg = f"QQQ Close: {y_close:.2f}, Change: {chg:.2f}%"
+    # 策略判断
+    push_msg = f"QQQ Real-time: {current_price:.2f}, Change: {chg:.2f}%"
     
     if chg < 0:
-        # 阶梯加仓策略：跌幅越深，定投金额越大
         abs_chg = abs(chg)
         if abs_chg <= 2:
             amt = 30
@@ -32,7 +26,7 @@ def run():
             amt = 100
         push_msg += f" | Strategy: Buy {amt} USD"
     else:
-        push_msg += " | Strategy: Wait"
+        push_msg += " | Strategy: Wait (Price is up)"
 
     # 执行推送
     key = os.environ.get("PUSHDEER_KEY")
