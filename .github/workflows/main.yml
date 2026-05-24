@@ -2,8 +2,8 @@ name: QQQ Bot
 on:
   workflow_dispatch:
   schedule:
-    # 设定为 UTC 13:29:50，提前触发环境初始化，确保 13:30:00 准时执行核心逻辑
-    - cron: '29 13 * * 1-5'
+    # 调整为 35 分运行 (美东时间 09:35)，确保开盘波动数据已进入 API
+    - cron: '35 13 * * 1-5'
 
 jobs:
   run_bot:
@@ -13,7 +13,6 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-      # 仅安装 requests，杜绝一切版本依赖冲突
       - run: pip install requests
       - env:
           PUSHDEER_KEY: ${{ secrets.PUSHDEER_KEY }}
