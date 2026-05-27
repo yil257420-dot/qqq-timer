@@ -1,4 +1,4 @@
-import requests, os, pytz, holidays
+import requests, os, pytz, holidays, time
 from datetime import datetime
 import yfinance as yf
 
@@ -14,6 +14,7 @@ def run():
     try:
         ticker = yf.Ticker("QQQ")
         hist = ticker.history(period="5d")
+        # 确保拿到数据
         prev_close = hist.iloc[-2]['Close']
         curr_close = hist.iloc[-1]['Close']
         pct = ((curr_close - prev_close) / prev_close) * 100
