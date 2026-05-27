@@ -1,4 +1,4 @@
-import requests, os, pytz, holidays, time
+import requests, os, pytz, holidays
 from datetime import datetime
 import yfinance as yf
 
@@ -7,14 +7,14 @@ def run():
     tz = pytz.timezone('US/Eastern')
     now = datetime.now(tz)
     
-    # 检查状态
+    # 检查状态：周末或假期标记
     is_holiday = now.weekday() >= 5 or now.strftime('%Y-%m-%d') in holidays.US()
     
-    # 获取数据 (策略基于前两日的收盘)
+    # 获取数据：强制锁定日线颗粒度
     try:
         ticker = yf.Ticker("QQQ")
-        hist = ticker.history(period="5d")
-        # 确保拿到数据
+        hist = ticker.history(period="5d", interval="1d")
+        # 确保拿到最后两个已闭合的交易日数据
         prev_close = hist.iloc[-2]['Close']
         curr_close = hist.iloc[-1]['Close']
         pct = ((curr_close - prev_close) / prev_close) * 100
@@ -35,7 +35,7 @@ def run():
     except Exception:
         msg = "【系统提示】数据源暂未更新，请稍候查看。"
 
-    # 瞬时推送 (PushDeer)
+    # 瞬时推送
     key = os.environ.get("PUSHDEER_KEY")
     if key:
         requests.post("https://api2.pushdeer.com/message/push", 
