@@ -24,6 +24,7 @@ def push_message(msg):
             },
             timeout=10
         )
+
         r.raise_for_status()
         print("推送成功")
 
@@ -32,29 +33,39 @@ def push_message(msg):
 
 
 def run():
-    # 美东时间，自动处理夏令时 / 冬令时
+    # 美东时间
     tz = pytz.timezone("US/Eastern")
     now = datetime.now(tz)
 
-    # 只有美东 09:30 才真正执行
-    # 这样可以解决夏令时 / 冬令时问题
-    if not (now.hour == 9 and now.minute == 30):
-        print(f"当前美东时间 {now.strftime('%H:%M')}，不是开盘提醒时间，跳过。")
+    # 允许开盘后5分钟内触发
+    # 防止 GitHub Actions 延迟
+    if not (
+        now.hour == 9 and
+        30 <= now.minute <= 35
+    ):
+        print(
+            f"当前美东时间 {now.strftime('%H:%M')}，"
+            "不在开盘触发窗口，跳过。"
+        )
         return
 
     today = now.date()
 
-    # 用 NYSE 交易所日历判断今天是否真正开盘
+    # NYSE 交易日历
     nyse = mcal.get_calendar("NYSE")
-    schedule = nyse.schedule(start_date=today, end_date=today)
+    schedule = nyse.schedule(
+        start_date=today,
+        end_date=today
+    )
 
-    # 休市也要准时提醒
+    # 休市提醒
     if schedule.empty:
         msg = (
             "【QQQ开盘行动指南】\n"
             "状态：休市\n"
             "策略：今日休市，无操作。"
         )
+
         push_message(msg)
         return
 
@@ -62,34 +73,50 @@ def run():
         ticker = yf.Ticker("QQQ")
 
         # 只取日线
-        hist = ticker.history(period="10d", interval="1d")
+        hist = ticker.history(
+            period="10d",
+            interval="1d"
+        )
 
         if hist.empty or len(hist) < 2:
             msg = "【系统提示】QQQ 数据不足，请稍候查看。"
             push_message(msg)
             return
 
-        # 去掉今天可能出现的未完成日线，只保留今天以前的完整交易日
+        # 去掉今天未完成K线
         hist = hist.copy()
-        hist["date_only"] = [i.date() for i in hist.index]
-        hist = hist[hist["date_only"] < today]
+
+        hist["date_only"] = [
+            i.date() for i in hist.index
+        ]
+
+        hist = hist[
+            hist["date_only"] < today
+        ]
 
         if len(hist) < 2:
-            msg = "【系统提示】完整收盘数据不足，请稍候查看。"
+            msg = "【系统提示】完整收盘数据不足。"
             push_message(msg)
             return
 
         prev_close = hist.iloc[-2]["Close"]
         curr_close = hist.iloc[-1]["Close"]
 
-        pct = ((curr_close - prev_close) / prev_close) * 100
+        pct = (
+            (curr_close - prev_close)
+            / prev_close
+        ) * 100
 
+        # 策略
         if pct >= 0:
             strategy = "涨幅为正，不操作。"
+
         elif -2.0 <= pct < 0:
             strategy = "跌幅 ≤ 2%，定投 30 美金。"
+
         elif -4.0 <= pct < -2.0:
             strategy = "跌幅 2%-4%，定投 50 美金。"
+
         else:
             strategy = "跌幅 > 4%，定投 100 美金。"
 
