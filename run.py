@@ -1,44 +1,44 @@
-import requests
-import os
-import pytz
-import holidays
+import requests, os, pytz, holidays
 from datetime import datetime
 import yfinance as yf
 
 def run():
+    # 锁定美东时间，自动处理夏冬令时切换
     tz = pytz.timezone('US/Eastern')
     now = datetime.now(tz)
-    us_holidays = holidays.US()
     
-    if now.weekday() >= 5 or now.strftime('%Y-%m-%d') in us_holidays:
-        msg = "【QQQ监测】今天是节假日或周末，美股不开盘。"
-    else:
-        try:
-            ticker = yf.Ticker("QQQ")
-            hist = ticker.history(period="5d")
-            prev_close = hist.iloc[-2]['Close']
-            curr_price = hist.iloc[-1]['Close']
-            pct = ((curr_price - prev_close) / prev_close) * 100
+    # 检查状态
+    is_holiday = now.weekday() >= 5 or now.strftime('%Y-%m-%d') in holidays.US()
+    
+    # 获取数据 (策略基于前两日的收盘)
+    try:
+        ticker = yf.Ticker("QQQ")
+        hist = ticker.history(period="5d")
+        prev_close = hist.iloc[-2]['Close']
+        curr_close = hist.iloc[-1]['Close']
+        pct = ((curr_close - prev_close) / prev_close) * 100
+        
+        # 阶梯定投逻辑
+        if is_holiday:
+            strategy = "今日休市，无操作。"
+        elif pct >= 0:
+            strategy = "涨幅为正，不操作。"
+        elif -2.0 <= pct < 0:
+            strategy = "跌幅 ≤ 2%，定投 30 美金。"
+        elif -4.0 <= pct < -2.0:
+            strategy = "跌幅 2%-4%，定投 50 美金。"
+        else:
+            strategy = "跌幅 > 4%，定投 100 美金。"
             
-            if pct >= 0:
-                strategy = "涨幅为正，不操作。"
-            elif -2.0 <= pct < 0:
-                strategy = "跌幅 ≤ 2%，定投 30 美金。"
-            elif -4.0 <= pct < -2.0:
-                strategy = "跌幅 2%-4%，定投 50 美金。"
-            else:
-                strategy = "跌幅 > 4%，定投 100 美金。"
-                
-            msg = f"【QQQ监测】\n昨日收盘: {prev_close:.2f}\n现价: {curr_price:.2f}\n涨跌: {pct:+.2f}%\n策略: {strategy}"
-        except Exception as e:
-            msg = f"【系统错误】数据获取失败: {str(e)}"
+        msg = f"【QQQ开盘行动指南】\n状态: {'休市' if is_holiday else '开盘'}\n前日收盘: {prev_close:.2f}\n昨日收盘: {curr_close:.2f}\n涨跌: {pct:+.2f}%\n策略: {strategy}"
+    except Exception:
+        msg = "【系统提示】数据源暂未更新，请稍候查看。"
 
+    # 瞬时推送 (PushDeer)
     key = os.environ.get("PUSHDEER_KEY")
     if key:
         requests.post("https://api2.pushdeer.com/message/push", 
-                      data={"pushkey": key, "text": msg, "type": "markdown", "is_alert": "1"}, 
-                      timeout=10)
-    print(msg)
+                      data={"pushkey": key, "text": msg, "type": "markdown", "is_alert": "1"}, timeout=10)
 
 if __name__ == "__main__":
     run()
