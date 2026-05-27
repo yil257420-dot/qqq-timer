@@ -2,8 +2,7 @@ name: QQQ Bot
 on:
   workflow_dispatch:
   schedule:
-    # 每天 UTC 13:30 触发，对齐美东 09:30 开盘
-    - cron: '30 13 * * *' 
+    - cron: '30 13 * * *'
 
 jobs:
   run_bot:
