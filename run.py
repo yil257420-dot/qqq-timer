@@ -10,11 +10,11 @@ def run():
     # 检查状态：周末或假期标记
     is_holiday = now.weekday() >= 5 or now.strftime('%Y-%m-%d') in holidays.US()
     
-    # 获取数据：强制锁定日线颗粒度
+    # 获取数据：强制锁定日线颗粒度，确保拿到纯粹的收盘价
     try:
         ticker = yf.Ticker("QQQ")
         hist = ticker.history(period="5d", interval="1d")
-        # 确保拿到最后两个已闭合的交易日数据
+        # 确保取到最近两个闭合交易日的收盘价
         prev_close = hist.iloc[-2]['Close']
         curr_close = hist.iloc[-1]['Close']
         pct = ((curr_close - prev_close) / prev_close) * 100
