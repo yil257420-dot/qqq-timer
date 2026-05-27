@@ -13,7 +13,9 @@ def run():
     # 获取数据：强制锁定日线颗粒度，确保拿到纯粹的收盘价
     try:
         ticker = yf.Ticker("QQQ")
+        # 这里就是最终确认的修改点：添加 interval="1d"
         hist = ticker.history(period="5d", interval="1d")
+        
         # 确保取到最近两个闭合交易日的收盘价
         prev_close = hist.iloc[-2]['Close']
         curr_close = hist.iloc[-1]['Close']
