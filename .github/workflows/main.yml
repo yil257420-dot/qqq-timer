@@ -3,9 +3,10 @@ name: QQQ Bot
 on:
   workflow_dispatch:
   schedule:
-    # 美东 09:30 开盘瞬间
-    # UTC 13:30 = 美东夏令时 09:30
+    # 夏令时：UTC 13:30 = 美东 09:30
+    # 冬令时：UTC 14:30 = 美东 09:30
     - cron: '30 13 * * *'
+    - cron: '30 14 * * *'
 
 jobs:
   run_bot:
@@ -15,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: pip install requests yfinance pytz holidays
+        run: pip install requests yfinance pytz pandas_market_calendars
 
       - name: Run bot
         env:
