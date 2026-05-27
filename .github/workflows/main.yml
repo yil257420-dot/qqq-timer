@@ -2,8 +2,8 @@ name: QQQ Bot
 on:
   workflow_dispatch:
   schedule:
-    # 每天北京时间 21:35 触发
-    - cron: '35 13 * * *' 
+    # 每天 UTC 13:30 触发，对齐美东 09:30 开盘
+    - cron: '30 13 * * *' 
 
 jobs:
   run_bot:
@@ -11,10 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-      - name: Install dependencies
         run: pip install requests yfinance pytz holidays
       - name: Run script
         env:
