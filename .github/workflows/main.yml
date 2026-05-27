@@ -1,17 +1,23 @@
 name: QQQ Bot
+
 on:
   workflow_dispatch:
   schedule:
+    # 美东 09:30 开盘瞬间
+    # UTC 13:30 = 美东夏令时 09:30
     - cron: '30 13 * * *'
 
 jobs:
   run_bot:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
+
+      - name: Install dependencies
         run: pip install requests yfinance pytz holidays
-      - name: Run script
+
+      - name: Run bot
         env:
           PUSHDEER_KEY: ${{ secrets.PUSHDEER_KEY }}
         run: python run.py
