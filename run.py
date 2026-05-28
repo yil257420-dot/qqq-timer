@@ -33,19 +33,19 @@ def push_message(msg):
 
 
 def run():
-    # 美东时间
+    # 美东时间（自动处理夏令时 / 冬令时）
     tz = pytz.timezone("US/Eastern")
     now = datetime.now(tz)
 
-    # 允许开盘后5分钟内触发
-    # 防止 GitHub Actions 延迟
+    # GitHub Actions 经常延迟
+    # 所以允许 09:30~09:59 都发送
     if not (
         now.hour == 9 and
-        30 <= now.minute <= 35
+        30 <= now.minute <= 59
     ):
         print(
             f"当前美东时间 {now.strftime('%H:%M')}，"
-            "不在开盘触发窗口，跳过。"
+            "不在开盘提醒窗口，跳过。"
         )
         return
 
@@ -53,13 +53,15 @@ def run():
 
     # NYSE 交易日历
     nyse = mcal.get_calendar("NYSE")
+
     schedule = nyse.schedule(
         start_date=today,
         end_date=today
     )
 
-    # 休市提醒
+    # 今日休市
     if schedule.empty:
+
         msg = (
             "【QQQ开盘行动指南】\n"
             "状态：休市\n"
@@ -72,14 +74,17 @@ def run():
     try:
         ticker = yf.Ticker("QQQ")
 
-        # 只取日线
+        # 只获取日线
         hist = ticker.history(
             period="10d",
             interval="1d"
         )
 
+        # 数据不足
         if hist.empty or len(hist) < 2:
+
             msg = "【系统提示】QQQ 数据不足，请稍候查看。"
+
             push_message(msg)
             return
 
@@ -94,32 +99,44 @@ def run():
             hist["date_only"] < today
         ]
 
+        # 再次确认数据足够
         if len(hist) < 2:
+
             msg = "【系统提示】完整收盘数据不足。"
+
             push_message(msg)
             return
 
+        # 前一个交易日
         prev_close = hist.iloc[-2]["Close"]
+
+        # 最近一个完整交易日
         curr_close = hist.iloc[-1]["Close"]
 
+        # 涨跌幅
         pct = (
             (curr_close - prev_close)
             / prev_close
         ) * 100
 
-        # 策略
+        # 定投逻辑
         if pct >= 0:
+
             strategy = "涨幅为正，不操作。"
 
         elif -2.0 <= pct < 0:
+
             strategy = "跌幅 ≤ 2%，定投 30 美金。"
 
         elif -4.0 <= pct < -2.0:
+
             strategy = "跌幅 2%-4%，定投 50 美金。"
 
         else:
+
             strategy = "跌幅 > 4%，定投 100 美金。"
 
+        # 推送内容
         msg = (
             "【QQQ开盘行动指南】\n"
             "状态：开盘\n"
@@ -132,7 +149,9 @@ def run():
         push_message(msg)
 
     except Exception as e:
+
         msg = f"【系统提示】请求失败：{str(e)}"
+
         push_message(msg)
 
 
