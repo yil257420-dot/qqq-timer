@@ -2,11 +2,6 @@ name: QQQ Bot
 
 on:
   workflow_dispatch:
-  schedule:
-    # 夏令时：UTC 13:30 = 美东 09:30
-    # 冬令时：UTC 14:30 = 美东 09:30
-    - cron: '30 13 * * *'
-    - cron: '30 14 * * *'
 
 jobs:
   run_bot:
